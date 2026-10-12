@@ -1,0 +1,1 @@
+export const logger = { error(event: string, attributes: Record<string, unknown>) { console.error(JSON.stringify({ level: "error", event, ...attributes })); }, info(event: string, attributes: Record<string, unknown>) { console.info(JSON.stringify({ level: "info", event, ...attributes })); } };

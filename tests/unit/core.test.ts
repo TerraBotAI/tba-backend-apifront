@@ -1,0 +1,12 @@
+import { describe, expect, it } from "vitest";
+import { NotFoundException } from "@/backend/exceptions/app-exception";
+import { canonicalize, HmacService } from "@/backend/security/hmac.service";
+import { createUserSchema, paginationSchema } from "@/backend/schemas/user.schema";
+process.env.HMAC_SECRET = "a-very-long-test-secret-that-is-at-least-32";
+process.env.HMAC_KEY_ID = "test-key";
+process.env.HMAC_ALLOWED_TENANT_IDS = "public,tenant-a";
+process.env.HMAC_TIMESTAMP_TOLERANCE_SECONDS = "300";
+process.env.DATABASE_URL = "postgresql://user:password@localhost:5432/database";
+describe("application exceptions", () => { it("preserves an HTTP error contract", () => { expect(new NotFoundException("User not found")).toMatchObject({ statusCode: 404, code: "RESOURCE_NOT_FOUND", isOperational: true }); }); });
+describe("request validation", () => { it("normalizes pagination and rejects invalid users", () => { expect(paginationSchema.parse({ page: "2", pageSize: "25" })).toMatchObject({ page: 2, pageSize: 25 }); expect(() => createUserSchema.parse({ email: "invalid", name: "" })).toThrow(); }); });
+describe("HMAC", () => { const input = { method: "POST", pathname: "/api/v1/users", search: "b=2&a=1", timestamp: "1790000000", tenantId: "tenant-a", nonce: "1234567890abcdef", body: '{"name":"Ada"}' }; it("uses a deterministic canonical representation and rejects tampering", () => { const service = new HmacService(); const signature = service.sign(input); expect(canonicalize(input)).toContain("a=1&b=2"); expect(service.verify(input, signature)).toBe(true); expect(service.verify({ ...input, body: "{}" }, signature)).toBe(false); }); });
